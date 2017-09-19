@@ -34,6 +34,8 @@ int main (int argc, char * argv[])
     // (see message_queue_test() in interprocess_basic.c)
     //  * open the two message queues (whose names are provided in the arguments)
     //  * repeatingly:
+
+			printf ("test:%d\n");
     //      - read from a message queue the new job to do
     //      - wait a random amount of time (e.g. rsleep(10000);)
     //      - do that job 
