@@ -10,6 +10,8 @@
 #define COMMON_H
 
 
+#include "uint128.h"
+
 // maximum size for any message in the tests
 #define MAX_MESSAGE_LENGTH	6
  
@@ -18,17 +20,16 @@
 typedef struct
 {
     // a data structure with 3 members
-    int                     a;
-    int                     b;
-    char                    c;
+    char                    start_char;
+    char                    end_char;
+    int                     length;
+    uint128_t               md5;
 } MQ_REQUEST_MESSAGE;
 
 typedef struct
 {
     // a data structure with 3 members
-    int                     e;
-    char                    f[20];
-    char                    g[20];
+    uint128_t               md5;
 } MQ_RESPONSE_MESSAGE;
 
 #endif
