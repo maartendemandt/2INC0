@@ -42,7 +42,7 @@ int main (int argc, char * argv[])
         
 	// TODO:
 	//  * create the message queues (see message_queue_test() in interprocess_basic.c)
-	pid_t               processID[NROF_WORKERS];      /* Process ID from fork() */
+	pid_t               processID[NROF_WORKERS];
 	mqd_t               mq_fd_request;
 	mqd_t               mq_fd_response;
 	MQ_REQUEST_MESSAGE  req;
@@ -59,13 +59,9 @@ int main (int argc, char * argv[])
 	attr.mq_maxmsg  = MQ_MAX_MESSAGES;
 	attr.mq_msgsize = sizeof (MQ_RESPONSE_MESSAGE);
 	mq_fd_response = mq_open (mq_name2, O_RDONLY | O_CREAT | O_EXCL, 0600, &attr);
-uint128_t new_hash;
-new_hash = md5s("a", 1);
-printf ("0x%016lx%016lx\n", HI(new_hash), LO(new_hash));
 	
 	//  * create the child processes (see process_test() and message_queue_test())     
 
-    	printf ("parent pid:%d\n", getpid());
 	for(int i=0;i<NROF_WORKERS;i++)
 	{
 		processID[i] = fork();
@@ -76,35 +72,36 @@ printf ("0x%016lx%016lx\n", HI(new_hash), LO(new_hash));
 		}
 		else
 		{
-		if (processID[i] == 0)
-		{
-			printf ("child  pid:%d\n", getpid());
-			
-            		execlp ("./worker","./worker", mq_name1, mq_name2, NULL);
-			// or try this one:
-			//execlp ("./interprocess_basics", "my_own_name_for_argv0", "first_argument", NULL);
+			if (processID[i] == 0)
+			{			
+		    		execlp ("./worker","./worker", mq_name1, mq_name2, NULL);
 
-			// we should never arrive here...
-			perror ("execlp() failed");
-		}
-        // else: we are still the parent (which continues this program)
-        }
-    }
+				perror ("execlp() failed");
+			}
+       		}
+  	 }
+
 	//  * do the farming
 	int nrof_messages = 0;
 	int nrof_messages_received = 0;
 	char current_char = ALPHABET_START_CHAR;
 	int md5_list_index = 0;
+	char output[6][MAX_MESSAGE_LENGTH + 4];
 	
-	while(nrof_messages_received <= JOBS_NROF) 
+	// Wait until all messages are received
+	while(nrof_messages_received < JOBS_NROF) 
 	{
+		// Start a new job
 		if(nrof_messages < MQ_MAX_MESSAGES && current_char <= ALPHABET_END_CHAR) 
 		{
-			req.start_char = current_char;
+			req.start_char = ALPHABET_START_CHAR;
 			req.end_char = ALPHABET_END_CHAR;
 			req.length = MAX_MESSAGE_LENGTH;
+			req.first_char = current_char;
 			req.md5 = md5_list[md5_list_index];
-			printf ("parent: sending...%c\n",req.start_char+1);
+			req.list_index = md5_list_index;
+
+			// Send a new message
 			mq_send (mq_fd_request, (char *) &req, sizeof (req), 0);
 			nrof_messages++;
 
@@ -118,30 +115,49 @@ printf ("0x%016lx%016lx\n", HI(new_hash), LO(new_hash));
 				current_char++;
 			}
 		}
-		else {
-			// read the result and store it in the response message
-			printf ("parent: receiving...\n");
-			mq_receive (mq_fd_response, (char *) &rsp, sizeof (rsp), NULL);				
+		else 
+		{
+			// Read the result
+			mq_receive (mq_fd_response, (char *) &rsp, sizeof (rsp), NULL);	
+			if(rsp.length > 0) 
+			{
+				// Store the result in the output list
+				strcpy(output[rsp.index], "");
+				strcat(output[rsp.index], "'");
+				strcat(output[rsp.index],rsp.word);
+				strcat(output[rsp.index], "'\n");
+				
+			}			
+			nrof_messages--;
 			nrof_messages_received++;
-			nrof_messages--;		
-			
 		}
 	}
 
-
-	for(char l=ALPHABET_START_CHAR;l<=ALPHABET_END_CHAR;l++)
+	// Output
+	for(int list_index = 0; list_index < MD5_LIST_NROF ; list_index++)
 	{
-		for(int j=0;j<MD5_LIST_NROF;j++)
-		{
-			
-		}		
+		fprintf(stdout, "%s", output[list_index]);		
 	}
-		
-//
+
+	// * Wait untill children have been stopped
+	for(int i=0;i<NROF_WORKERS;i++) {
+		req.length = 0;
+		mq_send (mq_fd_request, (char *) &req, sizeof (req), 0);
+	}	
+	for(int j=0;j<NROF_WORKERS;j++) {
+		waitpid(processID[j], NULL, 0);
+	}
+
+	// * Clear the message queues
+	mq_close (mq_fd_response);
+	mq_close (mq_fd_request);
+	mq_unlink (mq_name1);
+	mq_unlink (mq_name2);   
+
 
 	// Important notice: make sure that the names of the message queues contain your
 	// student name and the process id (to ensure uniqueness during testing)
     
-    return (0);
+	return (0);
 }
 

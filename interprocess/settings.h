@@ -7,8 +7,8 @@
 
 // settings for interprocess communications
 // (note: be sure that MQ_MAX_MESSAGES <= /proc/sys/fs/mqueue/msg_max (=10 on most systems))
-#define NROF_WORKERS    	7
-#define MQ_MAX_MESSAGES 	10
+#define NROF_WORKERS    	26
+#define MQ_MAX_MESSAGES 	9
 
 
 // settings for the alphabet

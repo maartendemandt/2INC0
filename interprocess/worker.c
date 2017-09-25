@@ -30,38 +30,78 @@ static char                 mq_name2[80];
 
 static void rsleep (int t);
 
+static bool bf (char start_char, char end_char, int length, int index, char p[], uint128_t solution, char* found_solution);
+
 
 int main (int argc, char * argv[])
 {
-    // TODO:
-    // (see message_queue_test() in interprocess_basic.c)
-    //  * open the two message queues (whose names are provided in the arguments)
+	// TODO:
+	// (see message_queue_test() in interprocess_basic.c)
+	//  * open the two message queues (whose names are provided in the arguments)
 	mqd_t               mq_fd_request;
 	mqd_t               mq_fd_response;
 	MQ_REQUEST_MESSAGE  req;
 	MQ_RESPONSE_MESSAGE rsp;
-printf ("test:\n");
 	sprintf (mq_name1, "%s", argv[1]);
 	sprintf (mq_name2, "%s", argv[2]);
 
-printf ("test:\n");
+	bool jobs = true;
 	mq_fd_request = mq_open (mq_name1, O_RDONLY);
 
 	mq_fd_response = mq_open (mq_name2, O_WRONLY);
-    //  * repeatingly:
+	
+   	//  * repeatingly:
+	while(jobs) {
+ 		//      - read from a message queue the new job to do
+		mq_receive (mq_fd_request, (char*) &req, sizeof(req), NULL);
+		
+		//      - wait a random amount of time (e.g. rsleep(10000);)
+		rsleep(10000);
 
-printf ("test:\n");
-	mq_receive (mq_fd_request, (char*) &req, sizeof(req), NULL);
-printf ("test:\n");
-			printf ("test:%c\n", req.start_char);
-    //      - read from a message queue the new job to do
-    //      - wait a random amount of time (e.g. rsleep(10000);)
-    //      - do that job 
-    //      - write the results to a message queue
-    //    until there are no more tasks to do
-    //  * close the message queues
-    
-    return (0);
+		//    until there are no more tasks to do
+		if(req.length == 0) 
+		{
+			jobs = false;
+		}
+		else {
+			char p[1];	
+			p[0] = req.first_char;
+			char f_solution[req.length];
+			
+			//      - do that job 
+			bool found = bf(req.start_char, req.end_char, req.length, 1, p, req.md5, f_solution);
+			
+			rsp.index = req.list_index;
+
+			if(found) 
+			{
+				rsp.length = strlen(f_solution);
+				for(int i = 0; i < strlen(f_solution); i++) 
+				{
+					rsp.word[i] = f_solution[i];
+				}
+				for(int j = strlen(f_solution); j < req.length; j++)
+				{
+					rsp.word[j] = (char) 0;
+				}	
+			}
+			else 
+			{
+				rsp.length = 0;
+			}
+
+			//      - write the results to a message queue
+			mq_send (mq_fd_response, (char*) &rsp, sizeof(rsp), 0);
+		}
+
+	}
+
+	
+	//  * close the message queues
+	mq_close (mq_fd_response);
+	mq_close (mq_fd_request);
+        
+    	return (0);
 }
 
 /*
@@ -83,4 +123,36 @@ static void rsleep (int t)
     usleep (random() % t);
 }
 
+static bool bf (char start_char, char end_char, int length, int index, char p[], uint128_t solution, char* found_solution) {
+	uint128_t hash;
+	hash = md5s(p, strlen(p));
+	bool found = false;
+	
+	// If we have a match
+	if(solution == hash) {
+		strcpy(found_solution, p);
+		found = true;	
+	}
+	
+	// Brute Force
+	if(strlen(p) < length && !found) 
+	{
+
+		for(char l = start_char; l <= end_char && !found; l++) 
+		{
+			char new_p[index+1];
+			char insert[1];
+			insert[0] = l;
+			strcpy(new_p, p);
+			strcat(new_p, insert);
+			
+			// Recurse			
+			found = bf(start_char, end_char, length, index+1, new_p, solution, found_solution);
+		}
+
+	}
+
+	return found;
+	
+}
 

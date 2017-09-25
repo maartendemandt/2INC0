@@ -23,13 +23,17 @@ typedef struct
     char                    start_char;
     char                    end_char;
     int                     length;
+    char     		    first_char;
     uint128_t               md5;
+    int			    list_index;
 } MQ_REQUEST_MESSAGE;
 
 typedef struct
 {
     // a data structure with 3 members
-    uint128_t               md5;
+    char               word[MAX_MESSAGE_LENGTH];
+    int 	       length;
+    int		       index;
 } MQ_RESPONSE_MESSAGE;
 
 #endif
